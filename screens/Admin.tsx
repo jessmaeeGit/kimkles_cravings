@@ -25,35 +25,37 @@ export default function Admin() {
     );
   }
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+ return (
+  <View style={styles.container}>
+    <View style={styles.header}>
+      <View style={styles.headerLeft}>
         <Image source={require('../images/kimkles_logo.png')} style={styles.headerLogo} resizeMode="contain" />
-        <Text style={styles.title}>Admin Dashboard</Text>
+        <View style={styles.headerTextContainer}>
+          <Text style={styles.title}>Admin Dashboard</Text>
+          <Text style={styles.subtitle}>Welcome back, {user.name}</Text>
+        </View>
       </View>
-
-      <View style={styles.actionBar}>
-        <TouchableOpacity style={styles.signOutBtn} onPress={logout}>
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.tabs}>
-        {(['Dashboard','Products','Orders','Users','Payments','Reports'] as Tab[]).map(t => (
-          <TouchableOpacity key={t} style={[styles.tab, tab === t && styles.tabActive]} onPress={() => setTab(t)}>
-            <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>{t}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {tab === 'Dashboard' && <DashboardTab />}
-      {tab === 'Products' && <ProductsTab />}
-      {tab === 'Orders' && <OrdersTab />}
-      {tab === 'Users' && <UsersTab />}
-      {tab === 'Payments' && <PaymentsTab />}
-      {tab === 'Reports' && <ReportsTab />}
+      <TouchableOpacity style={styles.signOutBtn} onPress={logout}>
+        <Text style={styles.signOutText}>Sign Out</Text>
+      </TouchableOpacity>
     </View>
-  );
+
+    <View style={styles.tabs}>
+      {(['Dashboard','Products','Orders','Users','Payments','Reports'] as Tab[]).map(t => (
+        <TouchableOpacity key={t} style={[styles.tab, tab === t && styles.tabActive]} onPress={() => setTab(t)}>
+          <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>{t}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+
+    {tab === 'Dashboard' && <DashboardTab />}
+    {tab === 'Products' && <ProductsTab />}
+    {tab === 'Orders' && <OrdersTab />}
+    {tab === 'Users' && <UsersTab />}
+    {tab === 'Payments' && <PaymentsTab />}
+    {tab === 'Reports' && <ReportsTab />}
+  </View>
+);
 }
 
 function DashboardTab() {
@@ -61,12 +63,24 @@ function DashboardTab() {
   const totalRevenue = useMemo(() => orders.reduce((s, o) => s + o.total, 0), [orders]);
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: 16 }}>
-      <View style={styles.card}> 
+      <View style={styles.statsCard}>
         <Text style={styles.cardTitle}>Overview</Text>
-        <Text style={styles.rowMeta}>Total Products: {products.length}</Text>
-        <Text style={styles.rowMeta}>Total Orders: {orders.length}</Text>
-        <Text style={styles.rowMeta}>Total Users: {users.length}</Text>
-        <Text style={styles.rowMeta}>Revenue: ₱{totalRevenue.toFixed(2)}</Text>
+        <View style={styles.statsRow}>
+          <Text style={styles.statsLabel}>Total Products</Text>
+          <Text style={styles.statsValue}>{products.length}</Text>
+        </View>
+        <View style={styles.statsRow}>
+          <Text style={styles.statsLabel}>Total Orders</Text>
+          <Text style={styles.statsValue}>{orders.length}</Text>
+        </View>
+        <View style={styles.statsRow}>
+          <Text style={styles.statsLabel}>Total Users</Text>
+          <Text style={styles.statsValue}>{users.length}</Text>
+        </View>
+        <View style={styles.statsRow}>
+          <Text style={styles.statsLabel}>Revenue</Text>
+          <Text style={styles.statsValue}>₱{totalRevenue.toFixed(2)}</Text>
+        </View>
       </View>
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Notifications</Text>
@@ -176,29 +190,41 @@ function OrdersTab() {
       data={orders}
       keyExtractor={(o) => o.id}
       renderItem={({ item }) => (
-        <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rowName}>{item.customerName || item.id}</Text>
-            <Text style={styles.rowMeta}>{item.items.length} items • ₱{item.total} • {new Date(item.createdAt).toLocaleString()}</Text>
-            <Text style={styles.rowMeta}>
-              Status: <Text style={{ color: item.status === 'Delivered' ? '#059669' : item.status === 'Cancelled' ? '#EF4444' : '#374151' }}>{item.status}</Text>
-            </Text>
-            {item.customerPhone ? (<Text style={styles.rowMeta}>Phone: {item.customerPhone}</Text>) : null}
-            {item.address ? (<Text style={styles.rowMeta}>Address: {item.address}</Text>) : null}
-            <Text style={styles.rowMeta}>Items:</Text>
-            {item.items.map(it => (
-              <Text key={it.product.id} style={styles.rowMeta}>{it.product.name} x {it.qty}</Text>
-            ))}
-          </View>
-          <View style={{ gap: 6 }}>
-            {ORDER_STATUSES.map(s => (
-              <TouchableOpacity key={s} style={styles.smallBtn} onPress={() => updateOrderStatus(item.id, s)}>
-                <Text style={styles.smallText}>{s}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      )}
+  <View style={styles.row}>
+    <View style={{ flex: 1 }}>
+      <Text style={styles.rowName}>{item.customerName || item.id}</Text>
+      <Text style={styles.rowMeta}>{item.items.length} items • ₱{item.total} • {new Date(item.createdAt).toLocaleString()}</Text>
+      <View style={[
+        styles.statusBadge,
+        item.status === 'Delivered' ? styles.statusBadgeDelivered :
+        item.status === 'Cancelled' ? styles.statusBadgeCancelled :
+        styles.statusBadgeDefault
+      ]}>
+        <Text style={[
+          styles.statusText,
+          item.status === 'Delivered' ? styles.statusTextDelivered :
+          item.status === 'Cancelled' ? styles.statusTextCancelled :
+          styles.statusTextDefault
+        ]}>
+          {item.status}
+        </Text>
+      </View>
+      {item.customerPhone ? (<Text style={styles.rowMeta}>Phone: {item.customerPhone}</Text>) : null}
+      {item.address ? (<Text style={styles.rowMeta}>Address: {item.address}</Text>) : null}
+      <Text style={styles.rowMeta}>Items:</Text>
+      {item.items.map(it => (
+        <Text key={it.product.id} style={styles.rowMeta}>{it.product.name} x {it.qty}</Text>
+      ))}
+    </View>
+    <View style={{ gap: 6 }}>
+      {ORDER_STATUSES.map(s => (
+        <TouchableOpacity key={s} style={styles.smallBtn} onPress={() => updateOrderStatus(item.id, s)}>
+          <Text style={styles.smallText}>{s}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  </View>
+)}
     />
   );
 }
@@ -264,80 +290,710 @@ function PaymentsTab() {
 
 function ReportsTab() {
   const { orders } = useAppStore();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'today' | 'week' | 'month' | 'custom'>('all');
+
+  // Filter orders based on search criteria
+  const filteredOrders = useMemo(() => {
+    let filtered = orders;
+
+    // Apply date filters
+    if (activeFilter !== 'all') {
+      const now = new Date();
+      let filterStartDate: Date;
+
+      switch (activeFilter) {
+        case 'today':
+          filterStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          break;
+        case 'week':
+          filterStartDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case 'month':
+          filterStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          break;
+        case 'custom':
+          if (startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999); // Include the entire end date
+            filtered = filtered.filter(order => {
+              const orderDate = new Date(order.createdAt);
+              return orderDate >= start && orderDate <= end;
+            });
+          }
+          return filtered;
+        default:
+          return filtered;
+      }
+
+      filtered = filtered.filter(order => {
+        const orderDate = new Date(order.createdAt);
+        return orderDate >= filterStartDate;
+      });
+    }
+
+    // Apply search query filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(order => 
+        order.customerName?.toLowerCase().includes(query) ||
+        order.id.toLowerCase().includes(query) ||
+        order.items.some(item => item.product.name.toLowerCase().includes(query))
+      );
+    }
+
+    return filtered;
+  }, [orders, searchQuery, startDate, endDate, activeFilter]);
 
   const revenueByMonth = useMemo(() => {
     const map: Record<string, number> = {};
-    for (const o of orders) {
+    for (const o of filteredOrders) {
       const d = new Date(o.createdAt);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       map[key] = (map[key] || 0) + o.total;
     }
     return Object.entries(map).sort();
-  }, [orders]);
+  }, [filteredOrders]);
 
   const topSelling = useMemo(() => {
     const map: Record<string, number> = {};
-    for (const o of orders) {
+    for (const o of filteredOrders) {
       for (const it of o.items) {
         map[it.product.name] = (map[it.product.name] || 0) + it.qty;
       }
     }
     return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  }, [orders]);
+  }, [filteredOrders]);
+
+  const totalRevenue = useMemo(() => {
+    return filteredOrders.reduce((sum, order) => sum + order.total, 0);
+  }, [filteredOrders]);
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setStartDate('');
+    setEndDate('');
+    setActiveFilter('all');
+  };
 
   return (
-    <View>
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Monthly Revenue</Text>
-        {revenueByMonth.map(([m, v]) => (
-          <Text key={m} style={styles.rowMeta}>{m}: ₱{v.toFixed(2)}</Text>
-        ))}
+    <ScrollView contentContainerStyle={{ paddingBottom: 16 }}>
+      {/* Search and Filter Section */}
+      <View style={styles.searchCard}>
+        <Text style={styles.cardTitle}>🔍 Search & Filter Reports</Text>
+        
+        {/* Search Input */}
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by customer, order ID, or product..."
+            placeholderTextColor="#9CA3AF"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+
+        {/* Quick Filter Buttons */}
+        <View style={styles.filterContainer}>
+          <Text style={styles.filterLabel}>Quick Filters:</Text>
+          <View style={styles.filterButtons}>
+            {(['all', 'today', 'week', 'month', 'custom'] as const).map(filter => (
+              <TouchableOpacity
+                key={filter}
+                style={[styles.filterBtn, activeFilter === filter && styles.filterBtnActive]}
+                onPress={() => setActiveFilter(filter)}
+              >
+                <Text style={[styles.filterBtnText, activeFilter === filter && styles.filterBtnTextActive]}>
+                  {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Custom Date Range */}
+        {activeFilter === 'custom' && (
+          <View style={styles.dateRangeContainer}>
+            <View style={styles.dateInputContainer}>
+              <Text style={styles.dateLabel}>Start Date:</Text>
+              <TextInput
+                style={styles.dateInput}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor="#9CA3AF"
+                value={startDate}
+                onChangeText={setStartDate}
+              />
+            </View>
+            <View style={styles.dateInputContainer}>
+              <Text style={styles.dateLabel}>End Date:</Text>
+              <TextInput
+                style={styles.dateInput}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor="#9CA3AF"
+                value={endDate}
+                onChangeText={setEndDate}
+              />
+            </View>
+          </View>
+        )}
+
+        {/* Clear Filters Button */}
+        {(searchQuery || activeFilter !== 'all') && (
+          <TouchableOpacity style={styles.clearBtn} onPress={clearFilters}>
+            <Text style={styles.clearBtnText}>Clear All Filters</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Top-Selling Desserts</Text>
-        {topSelling.map(([n, q]) => (
-          <Text key={n} style={styles.rowMeta}>{n}: {q}</Text>
-        ))}
+      {/* Results Summary */}
+      <View style={styles.summaryCard}>
+        <Text style={styles.cardTitle}>📊 Results Summary</Text>
+        <View style={styles.summaryRow}>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryValue}>{filteredOrders.length}</Text>
+            <Text style={styles.summaryLabel}>Orders Found</Text>
+          </View>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryValue}>₱{totalRevenue.toFixed(2)}</Text>
+            <Text style={styles.summaryLabel}>Total Revenue</Text>
+          </View>
+        </View>
       </View>
-    </View>
+
+      {/* Revenue Report */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>💰 Monthly Revenue</Text>
+        {revenueByMonth.length > 0 ? (
+          revenueByMonth.map(([m, v]) => (
+            <View key={m} style={styles.revenueRow}>
+              <Text style={styles.revenueMonth}>{m}</Text>
+              <Text style={styles.revenueAmount}>₱{v.toFixed(2)}</Text>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.noDataText}>No revenue data for selected period</Text>
+        )}
+      </View>
+
+      {/* Top Selling Products */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>🏆 Top-Selling Desserts</Text>
+        {topSelling.length > 0 ? (
+          topSelling.map(([n, q], index) => (
+            <View key={n} style={styles.topSellingRow}>
+              <View style={styles.rankBadge}>
+                <Text style={styles.rankText}>#{index + 1}</Text>
+              </View>
+              <Text style={styles.productName}>{n}</Text>
+              <Text style={styles.quantitySold}>{q} sold</Text>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.noDataText}>No products found for selected criteria</Text>
+        )}
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#E8D8FF', padding: 16 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', marginBottom: 8 },
-  headerLogo: { width: 80, height: 80 },
-  title: { fontSize: 18, fontWeight: '500', color: '#111827', marginBottom: 12 },
-  meta: { color: '#6B7280', marginBottom: 8 },
-  actionBar: { flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 8 },
-  signOutBtn: { backgroundColor: '#EF4444', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10 },
-  signOutText: { color: '#fff', fontWeight: '900' },
-  tabs: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  tab: { backgroundColor: '#FEC9F0', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 9999 },
-  tabActive: { backgroundColor: '#C8F9FD' },
-  tabText: { color: '#6B7280', fontWeight: '700' },
-  tabTextActive: { color: '#111827' },
-
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 12 },
-  cardTitle: { fontWeight: '900', color: '#111827', marginBottom: 8 },
-
-  label: { fontWeight: '800', color: '#1F2937', marginTop: 8, marginBottom: 6 },
-  input: { backgroundColor: '#C8F9FD', borderRadius: 12, paddingHorizontal: 12, height: 42, marginBottom: 8 },
-  primaryBtn: { backgroundColor: '#FFB74D', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, alignItems: 'center', alignSelf: 'flex-start', marginTop: 8 },
-  primaryText: { color: '#111827', fontWeight: '900' },
-  pickBtn: { backgroundColor: '#FEC9F0', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10 },
-  pickText: { color: '#111827', fontWeight: '800' },
-  previewImage: { width: 48, height: 48, borderRadius: 8 },
-
-  chip: { backgroundColor: '#FEC9F0', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 9999 },
-  chipActive: { backgroundColor: '#C8F9FD' },
-  chipText: { color: '#6B7280', fontWeight: '700' },
-  chipTextActive: { color: '#111827' },
-
-  row: { backgroundColor: '#C8F9FD', padding: 12, borderRadius: 12, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  rowName: { fontSize: 16, fontWeight: '800', color: '#111827' },
-  rowMeta: { color: '#374151', marginTop: 2 },
-  smallBtn: { backgroundColor: '#FEC9F0', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, alignItems: 'center' },
-  smallText: { color: '#111827', fontWeight: '800', fontSize: 12 },
+  // Add the missing container style at the beginning
+  container: { 
+    flex: 1, 
+    backgroundColor: '#F8FAFC', 
+    padding: 16 
+  },
+  
+  // Update searchCard to match the enhanced version
+  searchCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#E0E7FF'
+  },
+  
+  // Add all the missing search and filter styles
+  searchContainer: {
+    marginBottom: 16
+  },
+  searchInput: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 48,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    fontSize: 16,
+    color: '#1E293B'
+  },
+  filterContainer: {
+    marginBottom: 16
+  },
+  filterLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8
+  },
+  filterButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8
+  },
+  filterBtn: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0'
+  },
+  filterBtnActive: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6'
+  },
+  filterBtnText: {
+    color: '#64748B',
+    fontWeight: '600',
+    fontSize: 13
+  },
+  filterBtnTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '600'
+  },
+  dateRangeContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16
+  },
+  dateInputContainer: {
+    flex: 1
+  },
+  dateLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6
+  },
+  dateInput: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    fontSize: 14,
+    color: '#1E293B'
+  },
+  clearBtn: {
+    backgroundColor: '#EF4444',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignSelf: 'flex-start'
+  },
+  clearBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 14
+  },
+  summaryCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    borderLeftWidth: 4,
+    borderLeftColor: '#10B981'
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around'
+  },
+  summaryItem: {
+    alignItems: 'center'
+  },
+  summaryValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 4
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500'
+  },
+  revenueRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9'
+  },
+  revenueMonth: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500'
+  },
+  revenueAmount: {
+    fontSize: 16,
+    color: '#1E293B',
+    fontWeight: '700'
+  },
+  topSellingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9'
+  },
+  rankBadge: {
+    backgroundColor: '#3B82F6',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12
+  },
+  rankText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  productName: {
+    flex: 1,
+    fontSize: 14,
+    color: '#1E293B',
+    fontWeight: '500'
+  },
+  quantitySold: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '600'
+  },
+  // Keep all your existing styles here (header, tabs, cards, etc.)
+  // Just add the missing ones above
+      noDataText: {
+    textAlign: 'center',
+    color: '#64748B',
+    fontStyle: 'italic',
+    paddingVertical: 20
+  },
+  
+  // Essential UI styles
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    marginBottom: 20,
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1
+  },
+  headerLogo: { 
+    width: 60, 
+    height: 60,
+    marginRight: 12
+  },
+  headerTextContainer: {
+    flex: 1
+  },
+  title: { 
+    fontSize: 24, 
+    fontWeight: '700', 
+    color: '#111827',
+    marginBottom: 4
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500'
+  },
+  meta: { 
+    color: '#6B7280', 
+    marginBottom: 8,
+    fontSize: 14
+  },
+  signOutBtn: { 
+    backgroundColor: '#EF4444', 
+    paddingVertical: 12, 
+    paddingHorizontal: 20, 
+    borderRadius: 12,
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6
+  },
+  signOutText: { 
+    color: '#FFFFFF', 
+    fontWeight: '600',
+    fontSize: 14
+  },
+  tabs: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    gap: 8, 
+    marginBottom: 20,
+    backgroundColor: '#C8F9FD',
+    padding: 8,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2
+  },
+  tab: { 
+    backgroundColor: '#FEC9F0', 
+    paddingHorizontal: 16, 
+    paddingVertical: 10, 
+    borderRadius: 12,
+    minWidth: 80,
+    alignItems: 'center'
+  },
+  tabActive: { 
+    backgroundColor: '#FFB74D',
+    shadowColor: '#FFB74D',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6
+  },
+  tabText: { 
+    color: '#6B7280', 
+    fontWeight: '700',
+    fontSize: 13
+  },
+  tabTextActive: { 
+    color: '#111827',
+    fontWeight: '700'
+  },
+  card: { 
+    backgroundColor: '#FFFFFF', 
+    borderRadius: 16, 
+    padding: 20, 
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#F1F5F9'
+  },
+  cardTitle: { 
+    fontWeight: '700', 
+    color: '#111827', 
+    marginBottom: 16,
+    fontSize: 18
+  },
+  statsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    borderLeftWidth: 4,
+    borderLeftColor: '#3B82F6'
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8
+  },
+  statsLabel: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500'
+  },
+  statsValue: {
+    fontSize: 16,
+    color: '#1E293B',
+    fontWeight: '700'
+  },
+  label: { 
+    fontWeight: '600', 
+    color: '#374151', 
+    marginTop: 12, 
+    marginBottom: 8,
+    fontSize: 14
+  },
+  input: { 
+    backgroundColor: '#F8FAFC', 
+    borderRadius: 12, 
+    paddingHorizontal: 16, 
+    height: 48, 
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    fontSize: 16,
+    color: '#1E293B'
+  },
+  primaryBtn: { 
+    backgroundColor: '#FFB74D', 
+    paddingVertical: 14, 
+    paddingHorizontal: 24, 
+    borderRadius: 12, 
+    alignItems: 'center', 
+    alignSelf: 'flex-start', 
+    marginTop: 12,
+    shadowColor: '#FFB74D',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6
+  },
+  primaryText: { 
+    color: '#111827', 
+    fontWeight: '800',
+    fontSize: 16
+  },
+  pickBtn: { 
+    backgroundColor: '#F1F5F9', 
+    paddingVertical: 12, 
+    paddingHorizontal: 16, 
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed'
+  },
+  pickText: { 
+    color: '#64748B', 
+    fontWeight: '600',
+    fontSize: 14
+  },
+  previewImage: { 
+    width: 60, 
+    height: 60, 
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#E2E8F0'
+  },
+  chip: { 
+    backgroundColor: '#F1F5F9', 
+    paddingHorizontal: 16, 
+    paddingVertical: 8, 
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0'
+  },
+  chipActive: { 
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6'
+  },
+  chipText: { 
+    color: '#64748B', 
+    fontWeight: '600',
+    fontSize: 13
+  },
+  chipTextActive: { 
+    color: '#FFFFFF',
+    fontWeight: '600'
+  },
+  row: { 
+    backgroundColor: '#FFFFFF', 
+    padding: 16, 
+    borderRadius: 12, 
+    marginBottom: 12, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F1F5F9'
+  },
+  rowName: { 
+    fontSize: 16, 
+    fontWeight: '600', 
+    color: '#1E293B',
+    marginBottom: 4
+  },
+  rowMeta: { 
+    color: '#111827', 
+    marginTop: 2,
+    fontSize: 14,
+    lineHeight: 20
+  },
+  smallBtn: { 
+    backgroundColor: '#F1F5F9', 
+    paddingVertical: 8, 
+    paddingHorizontal: 12, 
+    borderRadius: 8, 
+    alignItems: 'center',
+    minWidth: 70,
+    borderWidth: 1,
+    borderColor: '#E2E8F0'
+  },
+  smallText: { 
+    color: '#374151', 
+    fontWeight: '600', 
+    fontSize: 12 
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginVertical: 4
+  },
+  statusBadgeDelivered: {
+    backgroundColor: '#DCFCE7',
+  },
+  statusBadgeCancelled: {
+    backgroundColor: '#FEE2E2',
+  },
+  statusBadgeDefault: {
+    backgroundColor: '#F1F5F9',
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600'
+  },
+  statusTextDelivered: {
+    color: '#16A34A'
+  },
+  statusTextCancelled: {
+    color: '#DC2626'
+  },
+  statusTextDefault: {
+    color: '#64748B'
+  }
 });
+

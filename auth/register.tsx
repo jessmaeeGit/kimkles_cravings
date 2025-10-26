@@ -9,6 +9,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppStore } from '../store/AppStore';
@@ -22,10 +23,48 @@ export default function Register() {
   const [address, setAddress] = useState('');
   const [password, setPassword] = useState('');
 
-  const onSignUp = () => {
-    const name = fullname || username || 'Customer';
-    registerUser({ name, username, phone, address });
-    setScreen('login');
+  const validationForm = () => {
+    if (!fullname.trim() || !username.trim() || !phone.trim() || !address.trim() || !password.trim()) {
+      Alert.alert('Register', 'Please fill in all fields.');
+      return false;
+    }
+    return true;
+  };
+
+  const onSignUp = async () => {
+    if (validationForm()){
+      try{
+        const res = await fetch('https://backend-kimklescravings.up.railway.app/api/users/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: fullname,
+            username: username,
+            phone: phone,
+            address: address,
+            role: 'customer',
+            password: password,
+          }),
+        })
+
+        const data = await res.json();
+        if (res.ok) {
+          Alert.alert('Success', 'User registered successfully.');
+          setScreen('login');
+          setFullname('');
+          setUsername('');
+          setPhone('');
+          setAddress('');
+          setPassword('');
+        } else {
+          Alert.alert('Error', data.message);
+        }
+      } catch (error) {
+        Alert.alert('Error', 'An error occurred while registering the user.');
+      }
+    }
   };
 
   return (
