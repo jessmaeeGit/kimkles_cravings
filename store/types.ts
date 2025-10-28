@@ -14,17 +14,22 @@ export type Product = {
 export type Role = 'customer' | 'admin';
 
 export type User = {
+  id?: number;
+  created_at?: string;
   name: string;
   role: Role;
   username?: string;
   address?: string;
   phone?: string;
+  profileImage?: string;
 };
 
 export type CartItem = { product: Product; qty: number };
 
 export type OrderStatus = 'Pending' | 'Preparing' | 'Out for Delivery' | 'Delivered' | 'Cancelled';
 export type PaymentStatus = 'Paid' | 'Pending' | 'Failed' | 'Refunded';
+
+export type PaymentMethod = 'paypal' | 'gcash' | 'maya' | 'cod' | 'card';
 
 export type Order = {
   id: string;
@@ -36,5 +41,13 @@ export type Order = {
   customerName?: string;
   customerPhone?: string;
   paymentStatus?: PaymentStatus;
+  paymentMethod?: PaymentMethod;
   transactionId?: string;
+  specialInstructions?: string;
+  deliveryFee?: number;
+};
+
+export type AppStore = {
+  fetchUsers: () => Promise<void>;
+  refreshUsers: () => Promise<void>;
 };

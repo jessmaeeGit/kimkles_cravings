@@ -1,8 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Image, Alert, ScrollView } from 'react-native';
 import { CATEGORIES } from '../data/products';
 import { OrderStatus, PaymentStatus, Product, useAppStore } from '../store/AppStore';
-import { launchImageLibrary, ImageLibraryOptions } from 'react-native-image-picker';
+import {
+  ImageLibraryOptions,
+  launchImageLibrary,
+} from 'react-native-image-picker';
 
 const ORDER_STATUSES: OrderStatus[] = ['Pending', 'Preparing', 'Out for Delivery', 'Delivered', 'Cancelled'];
 const PAYMENT_STATUSES: PaymentStatus[] = ['Paid', 'Pending', 'Failed', 'Refunded'];
@@ -10,88 +13,337 @@ const PAYMENT_STATUSES: PaymentStatus[] = ['Paid', 'Pending', 'Failed', 'Refunde
 type Tab = 'Dashboard' | 'Products' | 'Orders' | 'Users' | 'Payments' | 'Reports';
 
 export default function Admin() {
-  const { user, setScreen, logout } = useAppStore();
+  const { user, setScreen, logout, adminNotifications, addAdminNotification, markAdminNotificationsAsRead } = useAppStore();
   const [tab, setTab] = useState<Tab>('Dashboard');
+  const [showNotifications, setShowNotifications] = useState(false);
 
   if (!user || user.role !== 'admin') {
     return (
       <View style={styles.container}>
         <Text style={styles.title}>Admin Only</Text>
         <Text style={styles.meta}>You must be logged in as an admin to access this screen.</Text>
-        <TouchableOpacity style={styles.primaryBtn} onPress={() => setScreen('home')}>
-          <Text style={styles.primaryText}>Go Home</Text>
+        <TouchableOpacity style={styles.primaryBtn} onPress={() => setScreen('welcome')}>
+          <Text style={styles.primaryText}>Go to Login</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
  return (
-  <View style={styles.container}>
-    <View style={styles.header}>
-      <View style={styles.headerLeft}>
-        <Image source={require('../images/kimkles_logo.png')} style={styles.headerLogo} resizeMode="contain" />
-        <View style={styles.headerTextContainer}>
-          <Text style={styles.title}>Admin Dashboard</Text>
-          <Text style={styles.subtitle}>Welcome back, {user.name}</Text>
+  <View style={styles.adminContainer}>
+    {/* Admin Header */}
+    <View style={styles.adminHeader}>
+      <View style={styles.adminHeaderLeft}>
+        <View style={styles.adminLogoContainer}>
+          <Image source={require('../images/kimkles_logo.png')} style={styles.adminLogo} resizeMode="contain" />
         </View>
+        <View style={styles.adminHeaderInfo}>
+          <Text style={styles.adminTitle}>Admin Control Panel</Text>
+          <Text style={styles.adminSubtitle}>Welcome back, {user.name}</Text>
+          <Text style={styles.adminRole}>Administrator</Text>
       </View>
-      <TouchableOpacity style={styles.signOutBtn} onPress={logout}>
-        <Text style={styles.signOutText}>Sign Out</Text>
+      </View>
+      
+      <View style={styles.adminHeaderActions}>
+        <TouchableOpacity 
+          style={styles.adminNotificationButton}
+          onPress={() => {
+            console.log('Admin notification button pressed');
+            markAdminNotificationsAsRead();
+            setShowNotifications(true);
+          }}
+          activeOpacity={0.7}
+        >
+          <Image
+            source={require('../images/notification.png')}
+            style={styles.adminNotificationIcon}
+            resizeMode="contain"
+          />
+          {adminNotifications.filter(n => !n.read).length > 0 && (
+            <View style={styles.adminNotificationBadge}>
+              <Text style={styles.adminNotificationBadgeText}>
+                {adminNotifications.filter(n => !n.read).length > 9 ? '9+' : adminNotifications.filter(n => !n.read).length}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.adminLogoutButton} 
+          onPress={() => {
+            Alert.alert(
+              'Sign Out',
+              'Are you sure you want to sign out?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Sign Out', style: 'destructive', onPress: logout }
+              ]
+            );
+          }}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.adminLogoutText}>Sign Out</Text>
       </TouchableOpacity>
+      </View>
     </View>
 
-    <View style={styles.tabs}>
+    {/* Admin Navigation */}
+    <View style={styles.adminNavigation}>
+      <View style={styles.adminNavGrid}>
       {(['Dashboard','Products','Orders','Users','Payments','Reports'] as Tab[]).map(t => (
-        <TouchableOpacity key={t} style={[styles.tab, tab === t && styles.tabActive]} onPress={() => setTab(t)}>
-          <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>{t}</Text>
+          <TouchableOpacity 
+            key={t} 
+            style={[styles.adminNavItem, tab === t && styles.adminNavItemActive]} 
+            onPress={() => setTab(t)}
+          >
+            <Text style={[styles.adminNavText, tab === t && styles.adminNavTextActive]}>{t}</Text>
         </TouchableOpacity>
       ))}
+      </View>
     </View>
 
+    {/* Admin Content */}
+    <View style={styles.adminContent}>
     {tab === 'Dashboard' && <DashboardTab />}
     {tab === 'Products' && <ProductsTab />}
     {tab === 'Orders' && <OrdersTab />}
     {tab === 'Users' && <UsersTab />}
     {tab === 'Payments' && <PaymentsTab />}
     {tab === 'Reports' && <ReportsTab />}
+    </View>
+
+    {/* Admin Notifications Modal */}
+    {showNotifications && (
+      <View style={styles.notificationsModal}>
+        <View style={styles.notificationsModalContent}>
+          <View style={styles.notificationsModalHeader}>
+            <Text style={styles.notificationsModalTitle}>Admin Notifications</Text>
+            <TouchableOpacity
+              style={styles.notificationsModalClose}
+              onPress={() => setShowNotifications(false)}
+            >
+              <Text style={styles.notificationsModalCloseText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.notificationsModalList}>
+            {adminNotifications.map((notification) => (
+              <View key={notification.id} style={styles.notificationsModalItem}>
+                <View style={styles.notificationsModalIcon}>
+                  <Text style={styles.notificationsModalEmoji}>
+                    {notification.type === 'order' ? '🛒' : notification.type === 'admin' ? '👨‍💼' : '🔔'}
+                  </Text>
+                </View>
+                <View style={styles.notificationsModalItemContent}>
+                  <Text style={styles.notificationsModalItemTitle}>{notification.title}</Text>
+                  <Text style={styles.notificationsModalItemMessage}>{notification.message}</Text>
+                  <Text style={styles.notificationsModalItemTime}>
+                    {new Date(notification.createdAt).toLocaleString()}
+                  </Text>
+                </View>
+              </View>
+            ))}
+            
+            {adminNotifications.length === 0 && (
+              <View style={styles.notificationsModalEmpty}>
+                <Text style={styles.notificationsModalEmptyIcon}>🔔</Text>
+                <Text style={styles.notificationsModalEmptyTitle}>No Notifications</Text>
+                <Text style={styles.notificationsModalEmptyMessage}>
+                  You're all caught up! We'll notify you when something new happens.
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    )}
   </View>
 );
 }
 
 function DashboardTab() {
-  const { orders, products, users, notifications } = useAppStore();
+  const { orders, products, users, adminNotifications, markAdminNotificationsAsRead, logout } = useAppStore();
   const totalRevenue = useMemo(() => orders.reduce((s, o) => s + o.total, 0), [orders]);
+  const pendingOrders = orders.filter(o => o.status === 'Pending').length;
+  const preparingOrders = orders.filter(o => o.status === 'Preparing').length;
+  const deliveredOrders = orders.filter(o => o.status === 'Delivered').length;
+  
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: 16 }}>
-      <View style={styles.statsCard}>
-        <Text style={styles.cardTitle}>Overview</Text>
-        <View style={styles.statsRow}>
-          <Text style={styles.statsLabel}>Total Products</Text>
-          <Text style={styles.statsValue}>{products.length}</Text>
+    <ScrollView style={styles.adminScrollView} showsVerticalScrollIndicator={false}>
+      {/* Key Metrics Cards */}
+      <View style={styles.metricsContainer}>
+        <View style={styles.metricCard}>
+          <View style={styles.metricIconContainer}>
+            <Text style={styles.metricIcon}>📦</Text>
         </View>
-        <View style={styles.statsRow}>
-          <Text style={styles.statsLabel}>Total Orders</Text>
-          <Text style={styles.statsValue}>{orders.length}</Text>
+          <View style={styles.metricContent}>
+            <Text style={styles.metricValue}>{products.length}</Text>
+            <Text style={styles.metricLabel}>Total Products</Text>
+            <Text style={styles.metricChange}>+2 this week</Text>
         </View>
-        <View style={styles.statsRow}>
-          <Text style={styles.statsLabel}>Total Users</Text>
-          <Text style={styles.statsValue}>{users.length}</Text>
         </View>
-        <View style={styles.statsRow}>
-          <Text style={styles.statsLabel}>Revenue</Text>
-          <Text style={styles.statsValue}>₱{totalRevenue.toFixed(2)}</Text>
+
+        <View style={styles.metricCard}>
+          <View style={styles.metricIconContainer}>
+            <Text style={styles.metricIcon}>🛒</Text>
+        </View>
+          <View style={styles.metricContent}>
+            <Text style={styles.metricValue}>{orders.length}</Text>
+            <Text style={styles.metricLabel}>Total Orders</Text>
+            <Text style={styles.metricChange}>+12 today</Text>
+      </View>
+        </View>
+
+        <View style={styles.metricCard}>
+          <View style={styles.metricIconContainer}>
+            <Text style={styles.metricIcon}>👥</Text>
+          </View>
+          <View style={styles.metricContent}>
+            <Text style={styles.metricValue}>{users.length}</Text>
+            <Text style={styles.metricLabel}>Active Users</Text>
+            <Text style={styles.metricChange}>+5 this week</Text>
+          </View>
+        </View>
+
+        <View style={styles.metricCard}>
+          <View style={styles.metricIconContainer}>
+            <Text style={styles.metricIcon}>💰</Text>
+          </View>
+          <View style={styles.metricContent}>
+            <Text style={styles.metricValue}>₱{totalRevenue.toFixed(0)}</Text>
+            <Text style={styles.metricLabel}>Total Revenue</Text>
+            <Text style={styles.metricChange}>+15% this month</Text>
+          </View>
         </View>
       </View>
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Notifications</Text>
-        {notifications.length === 0 ? (
-          <Text style={styles.rowMeta}>No notifications yet.</Text>
-        ) : (
-          notifications.slice(0, 5).map(n => (
-            <Text key={n.id} style={styles.rowMeta}>{new Date(n.createdAt).toLocaleString()} • {n.message} {"\n"}</Text>
-          ))
-        )}
+
+      {/* Pending Orders Alert */}
+      {pendingOrders > 0 && (
+        <View style={styles.pendingOrdersAlert}>
+          <View style={styles.pendingOrdersIcon}>
+            <Text style={styles.pendingOrdersEmoji}>⚠️</Text>
+          </View>
+          <View style={styles.pendingOrdersContent}>
+            <Text style={styles.pendingOrdersTitle}>
+              {pendingOrders} Order{pendingOrders > 1 ? 's' : ''} Pending Approval
+            </Text>
+            <Text style={styles.pendingOrdersMessage}>
+              {pendingOrders === 1 
+                ? 'There is 1 order waiting for your approval.' 
+                : `There are ${pendingOrders} orders waiting for your approval.`
+              }
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* Order Status Overview */}
+      <View style={styles.statusOverviewCard}>
+        <Text style={styles.sectionTitle}>Order Status Overview</Text>
+        <View style={styles.statusGrid}>
+          <View style={styles.statusItem}>
+            <View style={[styles.statusIndicator, { backgroundColor: '#F59E0B' }]} />
+            <Text style={styles.statusCount}>{pendingOrders}</Text>
+            <Text style={styles.statusLabel}>Pending</Text>
+          </View>
+          <View style={styles.statusItem}>
+            <View style={[styles.statusIndicator, { backgroundColor: '#3B82F6' }]} />
+            <Text style={styles.statusCount}>{preparingOrders}</Text>
+            <Text style={styles.statusLabel}>Preparing</Text>
+          </View>
+          <View style={styles.statusItem}>
+            <View style={[styles.statusIndicator, { backgroundColor: '#10B981' }]} />
+            <Text style={styles.statusCount}>{deliveredOrders}</Text>
+            <Text style={styles.statusLabel}>Delivered</Text>
+          </View>
+        </View>
       </View>
+
+      {/* Recent Activity */}
+      <View style={styles.activityCard}>
+        <Text style={styles.sectionTitle}>Recent Activity</Text>
+        <View style={styles.activityList}>
+          {adminNotifications.slice(0, 4).map((notification, index) => (
+            <View key={notification.id} style={styles.activityItem}>
+              <View style={styles.activityIcon}>
+                <Text style={styles.activityEmoji}>
+                  {notification.type === 'order' ? '🛒' : notification.type === 'admin' ? '👨‍💼' : '🔔'}
+                </Text>
+              </View>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityTitle}>{notification.title}</Text>
+                <Text style={styles.activityDescription}>{notification.message}</Text>
+                <Text style={styles.activityTime}>
+                  {new Date(notification.createdAt).toLocaleString()}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      </View>
+
+       {/* Quick Actions */}
+       <View style={styles.quickActionsCard}>
+         <Text style={styles.sectionTitle}>Quick Actions</Text>
+         <View style={styles.quickActionsGrid}>
+           <TouchableOpacity style={styles.quickActionButton}>
+             <Text style={styles.quickActionIcon}>➕</Text>
+             <Text style={styles.quickActionText}>Add Product</Text>
+           </TouchableOpacity>
+           <TouchableOpacity style={styles.quickActionButton}>
+             <Text style={styles.quickActionIcon}>📊</Text>
+             <Text style={styles.quickActionText}>View Reports</Text>
+           </TouchableOpacity>
+           <TouchableOpacity style={styles.quickActionButton}>
+             <Text style={styles.quickActionIcon}>👥</Text>
+             <Text style={styles.quickActionText}>Manage Users</Text>
+           </TouchableOpacity>
+           <TouchableOpacity style={styles.quickActionButton}>
+             <Text style={styles.quickActionIcon}>⚙️</Text>
+             <Text style={styles.quickActionText}>Settings</Text>
+           </TouchableOpacity>
+         </View>
+       </View>
+
+       {/* Admin Actions */}
+       {/* <View style={styles.adminActionsCard}>
+         <Text style={styles.sectionTitle}>Admin Actions</Text>
+         <View style={styles.adminActionsGrid}>
+                  <TouchableOpacity
+                    style={styles.adminActionButton}
+                    onPress={() => {
+                      markAdminNotificationsAsRead();
+                      // This will be handled by the parent component's showNotifications state
+                    }}
+                  >
+                    <Text style={styles.adminActionIcon}>🔔</Text>
+                    <Text style={styles.adminActionText}>Notifications</Text>
+                    {adminNotifications.filter(n => !n.read).length > 0 && (
+                      <View style={styles.adminActionBadge}>
+                        <Text style={styles.adminActionBadgeText}>
+                          {adminNotifications.filter(n => !n.read).length}
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+           
+           <TouchableOpacity 
+             style={[styles.adminActionButton, styles.adminActionButtonDanger]}
+             onPress={() => {
+               Alert.alert(
+                 'Sign Out',
+                 'Are you sure you want to sign out?',
+                 [
+                   { text: 'Cancel', style: 'cancel' },
+                   { text: 'Sign Out', style: 'destructive', onPress: logout }
+                 ]
+               );
+             }}
+           >
+             <Text style={styles.adminActionText}>Sign Out</Text>
+           </TouchableOpacity>
+      </View>
+      </View> */}
     </ScrollView>
   );
 }
@@ -184,83 +436,230 @@ function ProductsTab() {
 }
 
 function OrdersTab() {
-  const { orders, updateOrderStatus } = useAppStore();
+  const { orders, updateOrderStatus, addNotification, addAdminNotification } = useAppStore();
+  
+  // Sort orders with pending orders first
+  const sortedOrders = [...orders].sort((a, b) => {
+    if (a.status === 'Pending' && b.status !== 'Pending') return -1;
+    if (b.status === 'Pending' && a.status !== 'Pending') return 1;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+  
+  const handleStatusUpdate = (orderId: string, newStatus: OrderStatus) => {
+    updateOrderStatus(orderId, newStatus);
+    
+    // Create notification for customer about status update
+    const statusMessages = {
+      'Pending': 'Your order is confirmed and pending! ⏳',
+      'Preparing': 'Your order is being prepared! 👨‍🍳',
+      'Out for Delivery': 'Your order is out for delivery! 🚚',
+      'Delivered': 'Your order has been delivered! 📦',
+      'Cancelled': 'Your order has been cancelled. 😔'
+    };
+    
+    const statusMessage = statusMessages[newStatus];
+    if (statusMessage) {
+      addNotification(statusMessage, `Order #${orderId} status updated to: ${newStatus}`, 'order');
+    }
+    
+    // Create admin notification for status update
+    const adminStatusMessages = {
+      'Pending': 'Order Status Updated',
+      'Preparing': 'Order Status Updated', 
+      'Out for Delivery': 'Order Status Updated',
+      'Delivered': 'Order Status Updated',
+      'Cancelled': 'Order Status Updated'
+    };
+    
+    const adminMessage = adminStatusMessages[newStatus];
+    if (adminMessage) {
+      addAdminNotification(
+        adminMessage, 
+        `Order #${orderId} status changed to: ${newStatus}`, 
+        'order'
+      );
+    }
+  };
+  
+  const handleQuickApprove = (orderId: string) => {
+    Alert.alert(
+      'Approve Order',
+      'Are you sure you want to approve this order and start preparing it?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Approve & Start Preparing', 
+          onPress: () => {
+            handleStatusUpdate(orderId, 'Preparing');
+            addAdminNotification(
+              'Order Approved! ✅',
+              `Order #${orderId} has been approved and is now being prepared.`,
+              'order'
+            );
+          }
+        }
+      ]
+    );
+  };
+  
   return (
     <FlatList
-      data={orders}
+      data={sortedOrders}
       keyExtractor={(o) => o.id}
       renderItem={({ item }) => (
-  <View style={styles.row}>
-    <View style={{ flex: 1 }}>
-      <Text style={styles.rowName}>{item.customerName || item.id}</Text>
-      <Text style={styles.rowMeta}>{item.items.length} items • ₱{item.total} • {new Date(item.createdAt).toLocaleString()}</Text>
-      <View style={[
-        styles.statusBadge,
-        item.status === 'Delivered' ? styles.statusBadgeDelivered :
-        item.status === 'Cancelled' ? styles.statusBadgeCancelled :
-        styles.statusBadgeDefault
-      ]}>
-        <Text style={[
-          styles.statusText,
-          item.status === 'Delivered' ? styles.statusTextDelivered :
-          item.status === 'Cancelled' ? styles.statusTextCancelled :
-          styles.statusTextDefault
+        <View style={[
+          styles.row,
+          item.status === 'Pending' && styles.pendingOrderRow
         ]}>
-          {item.status}
-        </Text>
-      </View>
-      {item.customerPhone ? (<Text style={styles.rowMeta}>Phone: {item.customerPhone}</Text>) : null}
-      {item.address ? (<Text style={styles.rowMeta}>Address: {item.address}</Text>) : null}
-      <Text style={styles.rowMeta}>Items:</Text>
-      {item.items.map(it => (
-        <Text key={it.product.id} style={styles.rowMeta}>{it.product.name} x {it.qty}</Text>
-      ))}
-    </View>
-    <View style={{ gap: 6 }}>
-      {ORDER_STATUSES.map(s => (
-        <TouchableOpacity key={s} style={styles.smallBtn} onPress={() => updateOrderStatus(item.id, s)}>
-          <Text style={styles.smallText}>{s}</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  </View>
-)}
+          <View style={{ flex: 1 }}>
+            <View style={styles.orderHeader}>
+              <Text style={styles.rowName}>Order #{item.id}</Text>
+              <View style={[
+                styles.statusBadge,
+                item.status === 'Pending' ? styles.statusBadgePending :
+                item.status === 'Delivered' ? styles.statusBadgeDelivered :
+                item.status === 'Cancelled' ? styles.statusBadgeCancelled :
+                styles.statusBadgeDefault
+              ]}>
+                <Text style={[
+                  styles.statusText,
+                  item.status === 'Pending' ? styles.statusTextPending :
+                  item.status === 'Delivered' ? styles.statusTextDelivered :
+                  item.status === 'Cancelled' ? styles.statusTextCancelled :
+                  styles.statusTextDefault
+                ]}>
+                  {item.status}
+                </Text>
+              </View>
+            </View>
+            
+            <Text style={styles.customerName}>{item.customerName || 'Unknown Customer'}</Text>
+            <Text style={styles.rowMeta}>{item.items.length} items • ₱{item.total.toFixed(2)} • {new Date(item.createdAt).toLocaleString()}</Text>
+            
+            {item.customerPhone && <Text style={styles.rowMeta}>📞 {item.customerPhone}</Text>}
+            {item.address && <Text style={styles.rowMeta}>📍 {item.address}</Text>}
+            
+            <Text style={styles.itemsTitle}>Items:</Text>
+            {item.items.map(it => (
+              <Text key={it.product.id} style={styles.itemText}>
+                • {it.product.name} x {it.qty} (₱{(it.product.price * it.qty).toFixed(2)})
+              </Text>
+            ))}
+          </View>
+          
+          <View style={styles.orderActions}>
+            {item.status === 'Pending' && (
+              <TouchableOpacity 
+                style={[styles.smallBtn, styles.approveBtn]} 
+                onPress={() => handleQuickApprove(item.id)}
+              >
+                <Text style={[styles.smallText, styles.approveText]}>✅ Approve</Text>
+              </TouchableOpacity>
+            )}
+            
+            {ORDER_STATUSES.map(s => (
+              <TouchableOpacity 
+                key={s} 
+                style={[
+                  styles.smallBtn, 
+                  item.status === s && styles.activeStatusBtn
+                ]} 
+                onPress={() => handleStatusUpdate(item.id, s)}
+              >
+                <Text style={[
+                  styles.smallText,
+                  item.status === s && styles.activeStatusText
+                ]}>
+                  {s}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
     />
   );
 }
 
 function UsersTab() {
-  const { users, deleteUser } = useAppStore();
+  const { users, fetchUsers } = useAppStore();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Fetch users when component mounts
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchUsers();
+    setIsRefreshing(false);
+  };
+
   return (
-    <FlatList
-      data={users}
-      keyExtractor={(u, i) => u.name + i}
-      renderItem={({ item }) => (
-        <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rowName}>{item.name}</Text>
-            <Text style={styles.rowMeta}>Username: {item.username || '-'}</Text>
-            <Text style={styles.rowMeta}>Phone: {item.phone || '-'}</Text>
-            <Text style={styles.rowMeta}>Address: {item.address || '-'}</Text>
-            <Text style={styles.rowMeta}>Role: {item.role}</Text>
-          </View>
-          {item.role !== 'admin' && (
-            <TouchableOpacity
-              style={[styles.smallBtn, { backgroundColor: '#FCA5A5' }]}
-              onPress={() =>
-                Alert.alert('Remove User', `Remove ${item.name}?`, [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Remove', style: 'destructive', onPress: () => deleteUser({ username: item.username, name: item.name }) },
-                ])
-              }
-            >
-              <Text style={styles.smallText}>Remove</Text>
-            </TouchableOpacity>
-          )}
+    <View style={styles.usersContainer}>
+      <View style={styles.usersHeader}>
+        <Text style={styles.usersTitle}>Users ({users.length})</Text>
+        <TouchableOpacity 
+          style={styles.refreshButton} 
+          onPress={handleRefresh}
+          disabled={isRefreshing}
+        >
+          <Text style={styles.refreshButtonText}>
+            {isRefreshing ? '🔄' : '↻'} Refresh
+          </Text>
+        </TouchableOpacity>
+      </View>
+      
+      <FlatList
+        data={users}
+        keyExtractor={(u, i) => u.id?.toString() || u.name + i}
+        refreshing={isRefreshing}
+        onRefresh={handleRefresh}
+        renderItem={({ item }) => (
+          <View style={[styles.row, item.role === 'admin' && styles.adminRow]}>
+            <View style={{ flex: 1 }}>
+              <View style={styles.userHeader}>
+                <Text style={styles.rowName}>{item.name}</Text>
+                {item.role === 'admin' && (
+                  <Text style={styles.adminBadge}>ADMIN</Text>
+                )}
+              </View>
+              <Text style={styles.rowMeta}>Username: {item.username || '-'}</Text>
+              <Text style={styles.rowMeta}>Phone: {item.phone || '-'}</Text>
+              <Text style={styles.rowMeta}>Address: {item.address || '-'}</Text>
+              <Text style={styles.rowMeta}>Role: {item.role}</Text>
+              {item.created_at && (
+                <Text style={styles.rowMeta}>
+                  Joined: {new Date(item.created_at).toLocaleDateString()}
+                </Text>
+              )}
+            </View>
+            <View style={styles.userActions}>
+              {item.role !== 'admin' && (
+                <TouchableOpacity
+                  style={[styles.smallBtn, { backgroundColor: '#FCA5A5' }]}
+                  onPress={() =>
+                    Alert.alert('User Info', `User: ${item.name}\nUsername: ${item.username}\nPhone: ${item.phone}\nAddress: ${item.address}`)
+                  }
+                >
+                  <Text style={styles.smallText}>Info</Text>
+                </TouchableOpacity>
+              )}
+            </View>
         </View>
       )}
+      ListEmptyComponent={
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText}>No users found</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchUsers}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      }
     />
-  );
+  </View>
+);
 }
 
 function PaymentsTab() {
@@ -500,16 +899,570 @@ function ReportsTab() {
 }
 
 const styles = StyleSheet.create({
-  // Add the missing container style at the beginning
+  // Admin-specific container
+  adminContainer: { 
+    flex: 1, 
+    backgroundColor: '#E4D7FF', 
+    paddingTop: 0
+  },
+  
+  // Admin Header
+  adminHeader: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3
+  },
+  adminHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1
+  },
+  adminLogoContainer: {
+    width: 20,
+    height: 20,
+    borderRadius: 25,
+    backgroundColor: '#FFB74D',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10
+  },
+  adminLogo: {
+    width: 70,
+    height: 70,
+  },
+  adminHeaderInfo: {
+    flex: 1
+  },
+  adminTitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#111827',
+    marginBottom: 2
+  },
+  adminSubtitle: {
+    fontSize: 10,
+    color: '#6B7280',
+    marginBottom: 2
+  },
+  adminRole: {
+    fontSize: 12,
+    color: '#FFB74D',
+    fontWeight: '600'
+  },
+  adminHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12
+  },
+  adminNotificationButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFD9E8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2
+  },
+  adminNotificationIcon: {
+    width: 22,
+    height: 22,
+    tintColor: '#111827'
+  },
+  adminNotificationBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#FFFFFF'
+  },
+  adminNotificationBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '700'
+  },
+  adminLogoutButton: {
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3
+  },
+  adminLogoutIcon: {
+    fontSize: 14,
+    marginRight: 4
+  },
+  adminLogoutText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 12
+  },
+
+  // Admin Navigation
+  adminNavigation: {
+    backgroundColor: '#C8F9FD',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0'
+  },
+  adminNavGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 8
+  },
+  adminNavItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    minWidth: '30%',
+    alignItems: 'center',
+    flex: 1,
+    maxWidth: '48%'
+  },
+  adminNavItemActive: {
+    backgroundColor: '#FFB74D'
+  },
+  adminNavText: {
+    color: '#6B7280',
+    fontWeight: '600',
+    fontSize: 12
+  },
+  adminNavTextActive: {
+    color: '#FFFFFF'
+  },
+
+  // Admin Content
+  adminContent: {
+    flex: 1,
+    backgroundColor: '#E4D7FF'
+  },
+  adminScrollView: {
+    flex: 1,
+    padding: 20
+  },
+
+  // Dashboard Styles
+  metricsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+    marginBottom: 24
+  },
+  metricCard: {
+    flex: 1,
+    minWidth: '45%',
+    backgroundColor: '#C8F9FD',
+    padding: 20,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2
+  },
+  metricIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#FEC9F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16
+  },
+  metricIcon: {
+    fontSize: 24
+  },
+  metricContent: {
+    flex: 1
+  },
+  metricValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4
+  },
+  metricLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 2
+  },
+  metricChange: {
+    fontSize: 12,
+    color: '#10B981',
+    fontWeight: '600'
+  },
+
+  statusOverviewCard: {
+    backgroundColor: '#C8F9FD',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 16
+  },
+  statusGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around'
+  },
+  statusItem: {
+    alignItems: 'center'
+  },
+  statusIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginBottom: 8
+  },
+  statusCount: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4
+  },
+  statusLabel: {
+    fontSize: 12,
+    color: '#6B7280'
+  },
+
+  activityCard: {
+    backgroundColor: '#C8F9FD',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2
+  },
+  activityList: {
+    gap: 16
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  activityIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FEC9F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12
+  },
+  activityEmoji: {
+    fontSize: 20
+  },
+  activityContent: {
+    flex: 1
+  },
+  activityTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 2
+  },
+  activityDescription: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4
+  },
+  activityTime: {
+    fontSize: 10,
+    color: '#9CA3AF'
+  },
+
+  quickActionsCard: {
+    backgroundColor: '#C8F9FD',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2
+  },
+  quickActionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12
+  },
+  quickActionButton: {
+    flex: 1,
+    minWidth: '45%',
+    backgroundColor: '#FEC9F0',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0'
+  },
+  quickActionIcon: {
+    fontSize: 24,
+    marginBottom: 8
+  },
+  quickActionText: {
+    fontSize: 12,
+    color: '#111827',
+    fontWeight: '600'
+  },
+
+  // Admin Actions
+  adminActionsCard: {
+    backgroundColor: '#C8F9FD',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2
+  },
+  adminActionsGrid: {
+    flexDirection: 'row',
+    gap: 12
+  },
+  adminActionButton: {
+    flex: 1,
+    backgroundColor: '#FEC9F0',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    position: 'relative'
+  },
+  adminActionButtonDanger: {
+    backgroundColor: '#FEE2E2',
+    borderColor: '#FCA5A5'
+  },
+  adminActionIcon: {
+    fontSize: 24,
+    marginBottom: 8
+  },
+  adminActionText: {
+    fontSize: 12,
+    color: '#111827',
+    fontWeight: '600'
+  },
+  adminActionBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4
+  },
+  adminActionBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700'
+  },
+
+  // Admin Orders Styles
+  adminOrdersContainer: {
+    gap: 16
+  },
+  adminOrderCard: {
+    backgroundColor: '#C8F9FD',
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2
+  },
+  adminOrderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16
+  },
+  adminOrderInfo: {
+    flex: 1
+  },
+  adminOrderId: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4
+  },
+  adminOrderCustomer: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 2
+  },
+  adminOrderDate: {
+    fontSize: 12,
+    color: '#9CA3AF'
+  },
+  adminOrderStatus: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginLeft: 12
+  },
+  adminOrderStatusPending: {
+    backgroundColor: '#F59E0B'
+  },
+  adminOrderStatusPreparing: {
+    backgroundColor: '#3B82F6'
+  },
+  adminOrderStatusDelivered: {
+    backgroundColor: '#10B981'
+  },
+  adminOrderStatusCancelled: {
+    backgroundColor: '#EF4444'
+  },
+  adminOrderStatusText: {
+    fontSize: 12,
+    fontWeight: '600'
+  },
+  adminOrderStatusTextPending: {
+    color: '#FFFFFF'
+  },
+  adminOrderStatusTextPreparing: {
+    color: '#FFFFFF'
+  },
+  adminOrderStatusTextDelivered: {
+    color: '#FFFFFF'
+  },
+  adminOrderStatusTextCancelled: {
+    color: '#FFFFFF'
+  },
+  adminOrderDetails: {
+    marginBottom: 16
+  },
+  adminOrderTotal: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4
+  },
+  adminOrderItems: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 8
+  },
+  adminOrderContact: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4
+  },
+  adminOrderAddress: {
+    fontSize: 12,
+    color: '#6B7280'
+  },
+  adminOrderItemsList: {
+    marginBottom: 16
+  },
+  adminOrderItemsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 8
+  },
+  adminOrderItem: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 2
+  },
+  adminOrderActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8
+  },
+  adminStatusButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0'
+  },
+  adminStatusButtonActive: {
+    backgroundColor: '#FFB74D',
+    borderColor: '#FFB74D'
+  },
+  adminStatusButtonText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '600'
+  },
+  adminStatusButtonTextActive: {
+    color: '#FFFFFF'
+  },
+
+  // Legacy styles for other tabs
   container: { 
     flex: 1, 
-    backgroundColor: '#F8FAFC', 
+    backgroundColor: '#E4D7FF', 
     padding: 16 
   },
   
   // Update searchCard to match the enhanced version
   searchCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#C8F9FD',
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
@@ -527,7 +1480,7 @@ const styles = StyleSheet.create({
     marginBottom: 16
   },
   searchInput: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#C8F9FD',
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 48,
@@ -551,7 +1504,7 @@ const styles = StyleSheet.create({
     gap: 8
   },
   filterBtn: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#FEC9F0',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
@@ -559,8 +1512,8 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0'
   },
   filterBtnActive: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6'
+    backgroundColor: '#C8F9FD',
+    borderColor: '#C8F9FD'
   },
   filterBtnText: {
     color: '#64748B',
@@ -586,7 +1539,7 @@ const styles = StyleSheet.create({
     marginBottom: 6
   },
   dateInput: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#C8F9FD',
     borderRadius: 12,
     paddingHorizontal: 12,
     height: 40,
@@ -608,7 +1561,7 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
   summaryCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#C8F9FD',
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
@@ -725,6 +1678,49 @@ const styles = StyleSheet.create({
   headerTextContainer: {
     flex: 1
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12
+  },
+  notificationButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFD9E8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    position: 'relative'
+  },
+  notificationIcon: {
+    width: 22,
+    height: 22,
+    tintColor: '#111827'
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#FFFFFF'
+  },
+  notificationBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700'
+  },
   title: { 
     fontSize: 24, 
     fontWeight: '700', 
@@ -760,32 +1756,43 @@ const styles = StyleSheet.create({
   tabs: { 
     flexDirection: 'row', 
     flexWrap: 'wrap', 
-    gap: 8, 
-    marginBottom: 20,
-    backgroundColor: '#C8F9FD',
-    padding: 8,
-    borderRadius: 16,
+    gap: 10, 
+    marginBottom: 24,
+    backgroundColor: '#FFFFFF',
+    padding: 12,
+    borderRadius: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#F1F5F9'
   },
   tab: { 
-    backgroundColor: '#FEC9F0', 
-    paddingHorizontal: 16, 
-    paddingVertical: 10, 
-    borderRadius: 12,
-    minWidth: 80,
-    alignItems: 'center'
+    backgroundColor: '#F8FAFC', 
+    paddingHorizontal: 18, 
+    paddingVertical: 12, 
+    borderRadius: 16,
+    minWidth: 90,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2
   },
   tabActive: { 
     backgroundColor: '#FFB74D',
+    borderColor: '#FFB74D',
     shadowColor: '#FFB74D',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 6
+    elevation: 6,
+    transform: [{ scale: 1.02 }]
   },
   tabText: { 
     color: '#6B7280', 
@@ -797,7 +1804,7 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   },
   card: { 
-    backgroundColor: '#FFFFFF', 
+    backgroundColor: '#C8F9FD', 
     borderRadius: 16, 
     padding: 20, 
     marginBottom: 16,
@@ -828,6 +1835,31 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#3B82F6'
   },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+    marginTop: 16
+  },
+  statItem: {
+    flex: 1,
+    minWidth: '45%',
+    backgroundColor: '#F8FAFC',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2
+  },
+  statIcon: {
+    fontSize: 24,
+    marginBottom: 8
+  },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -852,7 +1884,7 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
   input: { 
-    backgroundColor: '#F8FAFC', 
+    backgroundColor: '#C8F9FD', 
     borderRadius: 12, 
     paddingHorizontal: 16, 
     height: 48, 
@@ -863,14 +1895,14 @@ const styles = StyleSheet.create({
     color: '#1E293B'
   },
   primaryBtn: { 
-    backgroundColor: '#FFB74D', 
+    backgroundColor: '#FEC9F0', 
     paddingVertical: 14, 
     paddingHorizontal: 24, 
     borderRadius: 12, 
     alignItems: 'center', 
     alignSelf: 'flex-start', 
     marginTop: 12,
-    shadowColor: '#FFB74D',
+    shadowColor: '#FEC9F0',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -924,18 +1956,18 @@ const styles = StyleSheet.create({
     fontWeight: '600'
   },
   row: { 
-    backgroundColor: '#FFFFFF', 
-    padding: 16, 
-    borderRadius: 12, 
-    marginBottom: 12, 
+    backgroundColor: '#C8F9FD', 
+    padding: 20, 
+    borderRadius: 16, 
+    marginBottom: 16, 
     flexDirection: 'row', 
     alignItems: 'center', 
-    gap: 12,
+    gap: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
     borderWidth: 1,
     borderColor: '#F1F5F9'
   },
@@ -952,14 +1984,19 @@ const styles = StyleSheet.create({
     lineHeight: 20
   },
   smallBtn: { 
-    backgroundColor: '#F1F5F9', 
-    paddingVertical: 8, 
-    paddingHorizontal: 12, 
-    borderRadius: 8, 
+    backgroundColor: '#FEC9F0', 
+    paddingVertical: 10, 
+    paddingHorizontal: 14, 
+    borderRadius: 12, 
     alignItems: 'center',
-    minWidth: 70,
+    minWidth: 80,
     borderWidth: 1,
-    borderColor: '#E2E8F0'
+    borderColor: '#E2E8F0',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2
   },
   smallText: { 
     color: '#374151', 
@@ -967,11 +2004,16 @@ const styles = StyleSheet.create({
     fontSize: 12 
   },
   statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
     alignSelf: 'flex-start',
-    marginVertical: 4
+    marginVertical: 6,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2
   },
   statusBadgeDelivered: {
     backgroundColor: '#DCFCE7',
@@ -994,6 +2036,291 @@ const styles = StyleSheet.create({
   },
   statusTextDefault: {
     color: '#64748B'
-  }
-});
+  },
 
+  // Enhanced Order Styles
+  pendingOrderRow: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
+    backgroundColor: '#FEF3C7'
+  },
+  orderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8
+  },
+  customerName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4
+  },
+  itemsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginTop: 8,
+    marginBottom: 4
+  },
+  itemText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 2
+  },
+  orderActions: {
+    gap: 6,
+    alignItems: 'flex-end'
+  },
+  approveBtn: {
+    backgroundColor: '#10B981',
+    borderColor: '#10B981'
+  },
+  approveText: {
+    color: '#FFFFFF',
+    fontWeight: '700'
+  },
+  activeStatusBtn: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6'
+  },
+  activeStatusText: {
+    color: '#FFFFFF',
+    fontWeight: '700'
+  },
+  statusBadgePending: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#F59E0B'
+  },
+  statusTextPending: {
+    color: '#D97706',
+    fontWeight: '700'
+  },
+
+  // Pending Orders Alert Styles
+  pendingOrdersAlert: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2
+  },
+  pendingOrdersIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#F59E0B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16
+  },
+  pendingOrdersEmoji: {
+    fontSize: 24
+  },
+  pendingOrdersContent: {
+    flex: 1
+  },
+  pendingOrdersTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#D97706',
+    marginBottom: 4
+  },
+  pendingOrdersMessage: {
+    fontSize: 14,
+    color: '#92400E',
+    lineHeight: 20
+  },
+
+  // Admin Notifications Modal Styles
+  notificationsModal: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000
+  },
+  notificationsModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    width: '90%',
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8
+  },
+  notificationsModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0'
+  },
+  notificationsModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827'
+  },
+  notificationsModalClose: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  notificationsModalCloseText: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '600'
+  },
+  notificationsModalList: {
+    maxHeight: 400,
+    padding: 16
+  },
+  notificationsModalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0'
+  },
+  notificationsModalIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FEC9F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12
+  },
+  notificationsModalEmoji: {
+    fontSize: 20
+  },
+  notificationsModalItemContent: {
+    flex: 1
+  },
+  notificationsModalItemTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 2
+  },
+  notificationsModalItemMessage: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4
+  },
+  notificationsModalItemTime: {
+    fontSize: 10,
+    color: '#9CA3AF'
+  },
+  notificationsModalEmpty: {
+    alignItems: 'center',
+    padding: 40
+  },
+  notificationsModalEmptyIcon: {
+    fontSize: 48,
+    marginBottom: 16
+  },
+  notificationsModalEmptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 8
+  },
+  notificationsModalEmptyMessage: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20
+  },
+  
+  usersContainer: {
+    flex: 1,
+  },
+  usersHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  usersTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  refreshButton: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  refreshButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  userHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  adminRow: {
+    backgroundColor: '#FEF3C7',
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
+  },
+  adminBadge: {
+    backgroundColor: '#F59E0B',
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  userActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    color: '#6B7280',
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+});

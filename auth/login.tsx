@@ -16,18 +16,73 @@ import { useAppStore } from '../store/AppStore';
 
 export default function Login() {
   const insets = useSafeAreaInsets();
-  const { loginWithPassword, setScreen } = useAppStore();
+  const { setScreen, setUser, users, addNotification, addAdminNotification } = useAppStore();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
-  const onLogin = () => {
-    const ok = loginWithPassword(username, password);
-    if (!ok) {
-      Alert.alert('Login Failed', 'Invalid credentials or unregistered account. Please register first or check your password.');
-      return;
+  const validationForm = () => {
+    if (!username.trim() || !password.trim()) {
+      Alert.alert('Login', 'Please fill in all fields.');
+      return false;
     }
-    const nameLower = (username || '').trim().toLowerCase();
-    setScreen(nameLower === 'admin' ? 'admin' : 'home');
+    return true;
+  };
+
+  const onLogin = async () => {
+    if (validationForm()) {
+      // Check for local admin account first
+      if (username === 'kimkles.admin' && password === 'kimkles2021') {
+        const adminUser = users.find(u => u.username === 'kimkles.admin');
+        if (adminUser) {
+          setUser(adminUser);
+          setScreen('admin');
+          setUsername('');
+          setPassword('');
+          Alert.alert('Success', 'Admin logged in successfully.');
+          
+          // Add welcome notification for admin
+          addAdminNotification('Welcome Admin! 👨‍💼', 'You have successfully logged in as administrator.', 'welcome');
+          return;
+        }
+      }
+
+      // If not admin, try backend API
+      try{
+        const res = await fetch('http://localhost:8000/api/users/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            username: username,
+            password: password,
+          }),
+        })
+
+        const data = await res.json();
+        if (res.ok) {
+          Alert.alert('Success', 'User logged in successfully.');
+          // Set user data from API response
+          setUser({
+            name: data.user?.name || data.user?.username || username,
+            role: data.user?.role || 'customer',
+            username: data.user?.username || username,
+            phone: data.user?.phone,
+            address: data.user?.address
+          });
+          setScreen('landing');
+          setUsername('');
+          setPassword('');
+          
+          // Add welcome notification
+          addNotification('Welcome to Kimkles Cravings! 👋', 'Thank you for logging in. Explore our delicious treats!', 'welcome');
+        } else {
+          Alert.alert('Error', data.error || 'Login failed.');
+        }
+      } catch (err) {
+        Alert.alert('Error', 'An error occurred while logging in.');
+      }
+    }
   };
 
   return (

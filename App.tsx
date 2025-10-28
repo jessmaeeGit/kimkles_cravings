@@ -1,22 +1,26 @@
- import React from 'react';
+import React from 'react';
 import { StatusBar, StyleSheet, View, Text, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppProvider, useAppStore } from './store/AppStore';
 import Login from './auth/login';
 import Register from './auth/register';
+import Landing from './screens/Landing';
 import Home from './screens/Home';
 import Cart from './screens/Cart';
 import Checkout from './screens/Checkout';
 import Orders from './screens/Orders';
 import Profile from './screens/Profile';
+import Notifications from './screens/Notifications';
 import Admin from './screens/Admin.tsx';
 import BottomTabs from './components/BottomTabs';
+import Header from './components/Header';
 
 function App() {
   return (
     <AppProvider>
       <SafeAreaProvider>
         <StatusBar barStyle="dark-content" />
+        <Header />
         <RootRouter />
         <BottomTabs />
       </SafeAreaProvider>
@@ -29,11 +33,13 @@ function RootRouter() {
   if (screen === 'welcome') return <AppContent />;
   if (screen === 'login') return <Login />;
   if (screen === 'register') return <Register />;
+  if (screen === 'landing') return user ? <Landing /> : <Login />;
   if (screen === 'home') return user ? <Home /> : <Login />;
   if (screen === 'cart') return <Cart />;
   if (screen === 'checkout') return <Checkout />;
   if (screen === 'orders') return <Orders />;
   if (screen === 'profile') return <Profile />;
+  if (screen === 'notifications') return <Notifications />;
   if (screen === 'admin') return <Admin />;
   return null;
 }

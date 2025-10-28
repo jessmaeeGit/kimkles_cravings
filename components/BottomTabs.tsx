@@ -3,16 +3,19 @@ import { View, TouchableOpacity, Text, StyleSheet, Image } from 'react-native';
 import { Screen, useAppStore } from '../store/AppStore';
 
 const TABS: { key: Screen; label: string }[] = [
-  { key: 'home', label: 'Home' },
+  { key: 'landing', label: 'Home' },
+  { key: 'home', label: 'Menu' },
   { key: 'cart', label: 'Cart' },
   { key: 'orders', label: 'Orders' },
-  { key: 'profile', label: 'Profile' },
 ];
 
 export default function BottomTabs() {
-  const { screen, setScreen, cart } = useAppStore();
+  const { screen, setScreen, cart, user } = useAppStore();
   const cartCount = cart.reduce((sum, ci) => sum + ci.qty, 0);
   if (screen === 'welcome' || screen === 'login' || screen === 'register' || screen === 'admin') return null;
+  
+  // Hide bottom tabs for notifications screen if user is admin
+  if (screen === 'notifications' && user?.role === 'admin') return null;
 
   return (
     <View style={styles.bar}>
@@ -39,8 +42,10 @@ export default function BottomTabs() {
 
 function iconFor(key: Screen) {
   switch (key) {
+    case 'landing':
+      return require('../images/home.png'); // Using home icon for landing/welcome
     case 'home':
-      return require('../images/home.png');
+      return require('../images/cookie.png');
     case 'cart':
       return require('../images/cart.png');
     case 'orders':

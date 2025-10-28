@@ -49,7 +49,7 @@ function OrderRow({ order }: { order: Order }) {
                 { text: 'No', style: 'cancel' },
                 { text: 'Yes, cancel', style: 'destructive', onPress: () => {
                     updateOrderStatus(order.id, 'Cancelled');
-                    addNotification(`Order ${order.id} cancelled by ${user?.name || 'Customer'}`);
+                    addNotification('Order Cancelled', `Order ${order.id} cancelled by ${user?.name || 'Customer'}`, 'order');
                   }
                 },
               ]

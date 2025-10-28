@@ -16,7 +16,7 @@ import { useAppStore } from '../store/AppStore';
 
 export default function Register() {
   const insets = useSafeAreaInsets();
-  const { registerUser, setScreen } = useAppStore();
+  const { setScreen } = useAppStore();
   const [fullname, setFullname] = useState('');
   const [username, setUsername] = useState('');
   const [phone, setPhone] = useState('');
@@ -31,10 +31,10 @@ export default function Register() {
     return true;
   };
 
-  const onSignUp = async () => {
-    if (validationForm()){
-      try{
-        const res = await fetch('https://backend-kimklescravings.up.railway.app/api/users/register', {
+  const onRegister = async () => {
+    if (validationForm()) {
+      try {
+        const res = await fetch('http://localhost:8000/api/users/register', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -42,27 +42,34 @@ export default function Register() {
           body: JSON.stringify({
             name: fullname,
             username: username,
-            phone: phone,
-            address: address,
-            role: 'customer',
             password: password,
+            address: address,
+            phone: phone,
+            role: 'customer'
           }),
-        })
+        });
 
         const data = await res.json();
         if (res.ok) {
-          Alert.alert('Success', 'User registered successfully.');
+          Alert.alert('Success', 'Account created successfully!');
           setScreen('login');
           setFullname('');
           setUsername('');
-          setPhone('');
-          setAddress('');
           setPassword('');
+          setAddress('');
+          setPhone('');
+          
+          // Notify admin panel to refresh users
+          // This could trigger a refresh if admin is logged in
+          // if (user?.role === 'admin') {
+          //   // Trigger refresh in admin panel
+          //   // You could use a global event or context update here
+          // }
         } else {
-          Alert.alert('Error', data.message);
+          Alert.alert('Error', data.error || 'Registration failed.');
         }
-      } catch (error) {
-        Alert.alert('Error', 'An error occurred while registering the user.');
+      } catch (err) {
+        Alert.alert('Error', 'An error occurred while creating account.');
       }
     }
   };
@@ -139,7 +146,7 @@ export default function Register() {
             />
           </View>
 
-          <TouchableOpacity style={styles.signupButton} activeOpacity={0.85} onPress={onSignUp}>
+          <TouchableOpacity style={styles.signupButton} activeOpacity={0.85} onPress={onRegister}>
             <Text style={styles.signupButtonText}>Sign-Up</Text>
           </TouchableOpacity>
 
