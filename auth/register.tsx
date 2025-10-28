@@ -34,7 +34,7 @@ export default function Register() {
   const onRegister = async () => {
     if (validationForm()) {
       try {
-        const res = await fetch('https://backend-kimklescravings.up.railway.app/api/users', {
+        const res = await fetch('https://backend-kimklescravings.up.railway.app/api/users/register', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -48,8 +48,17 @@ export default function Register() {
             role: 'customer'
           }),
         });
-
-        const data = await res.json();
+        let data: any = null;
+        try {
+          data = await res.json();
+        } catch (e) {
+          const text = await res.text().catch(() => '');
+          if (!res.ok) {
+            Alert.alert('Error', text || `Registration failed. (${res.status})`);
+            return;
+          }
+          throw e;
+        }
         if (res.ok) {
           Alert.alert('Success', 'Account created successfully!');
           setScreen('login');
@@ -66,10 +75,10 @@ export default function Register() {
           //   // You could use a global event or context update here
           // }
         } else {
-          Alert.alert('Error', data.error || 'Registration failed.');
+          Alert.alert('Error', data?.error || `Registration failed. (${res.status})`);
         }
-      } catch (err) {
-        Alert.alert('Error', 'An error occurred while creating account.');
+      } catch (err: any) {
+        Alert.alert('Error', err?.message || 'An error occurred while creating account.');
       }
     }
   };

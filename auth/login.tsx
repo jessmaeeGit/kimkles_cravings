@@ -48,7 +48,7 @@ export default function Login() {
 
       // If not admin, try backend API
       try{
-        const res = await fetch('https://backend-kimklescravings.up.railway.app/api/users', {
+        const res = await fetch('https://backend-kimklescravings.up.railway.app/api/users/login', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -58,8 +58,17 @@ export default function Login() {
             password: password,
           }),
         })
-
-        const data = await res.json();
+        let data: any = null;
+        try {
+          data = await res.json();
+        } catch (e) {
+          const text = await res.text().catch(() => '');
+          if (!res.ok) {
+            Alert.alert('Error', text || `Login failed. (${res.status})`);
+            return;
+          }
+          throw e;
+        }
         if (res.ok) {
           Alert.alert('Success', 'User logged in successfully.');
           // Set user data from API response
@@ -77,10 +86,10 @@ export default function Login() {
           // Add welcome notification
           addNotification('Welcome to Kimkles Cravings! 👋', 'Thank you for logging in. Explore our delicious treats!', 'welcome');
         } else {
-          Alert.alert('Error', data.error || 'Login failed.');
+          Alert.alert('Error', data?.error || `Login failed. (${res.status})`);
         }
-      } catch (err) {
-        Alert.alert('Error', 'An error occurred while logging in.');
+      } catch (err: any) {
+        Alert.alert('Error', err?.message || 'An error occurred while logging in.');
       }
     }
   };
