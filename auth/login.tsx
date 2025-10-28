@@ -48,7 +48,7 @@ export default function Login() {
 
       // If not admin, try backend API
       try{
-        const res = await fetch('http://localhost:8000/api/users/login', {
+        const res = await fetch('https://backend-kimklescravings.up.railway.app/api/users', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

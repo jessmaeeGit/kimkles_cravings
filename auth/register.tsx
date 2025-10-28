@@ -34,7 +34,7 @@ export default function Register() {
   const onRegister = async () => {
     if (validationForm()) {
       try {
-        const res = await fetch('http://localhost:8000/api/users/register', {
+        const res = await fetch('https://backend-kimklescravings.up.railway.app/api/users', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
