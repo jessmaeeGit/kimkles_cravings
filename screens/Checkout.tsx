@@ -8,12 +8,12 @@ import {
   Alert, 
   Image, 
   ScrollView,
-  ActivityIndicator,
-  FlatList
+  ActivityIndicator
 } from 'react-native';
 import { useAppStore } from '../store/AppStore';
+import PayPalPayment from '../components/PayPalPayment';
 
-type PaymentMethod = 'paypal' | 'gcash' | 'maya' | 'cod' | 'card';
+type PaymentMethod = 'paypal' | 'gcash' |'cod';
 
 export default function Checkout() {
   const { user, placeOrder, setScreen, cart } = useAppStore();
@@ -31,8 +31,6 @@ export default function Checkout() {
   const paymentMethods = [
     { id: 'paypal', name: 'PayPal', icon: '💳', color: '#003087' },
     { id: 'gcash', name: 'GCash', icon: '📱', color: '#0070BA' },
-    { id: 'maya', name: 'Maya', icon: '💙', color: '#00A0E3' },
-    { id: 'card', name: 'Credit/Debit Card', icon: '💳', color: '#1F2937' },
     { id: 'cod', name: 'Cash on Delivery', icon: '💰', color: '#059669' },
   ];
 
@@ -59,33 +57,65 @@ export default function Checkout() {
   const onPay = async () => {
     if (!validateForm()) return;
     
-    setIsProcessing(true);
-    
-    try {
-      // Simulate payment processing
-      await new Promise(resolve => setTimeout(() => resolve(undefined), 2000));
+    // For non-PayPal payments, use the existing logic
+    if (selectedPayment !== 'paypal') {
+      setIsProcessing(true);
       
-      const order = placeOrder(address, {
-        paymentMethod: selectedPayment,
-        specialInstructions,
-        customerName: name,
-        customerPhone: phone,
-      });
-      
-      if (order) {
-        Alert.alert(
-          'Payment Successful! 🎉', 
-          `Your order #${order.id} has been placed successfully.\n\nPayment Method: ${paymentMethods.find(p => p.id === selectedPayment)?.name}\nTotal: ₱${finalTotal.toFixed(2)}`,
-          [{ text: 'View Orders', onPress: () => setScreen('orders') }]
-        );
-      } else {
-        Alert.alert('Error', 'Failed to place order. Please try again.');
+      try {
+        // Simulate payment processing
+        await new Promise(resolve => setTimeout(() => resolve(undefined), 2000));
+        
+        const order = placeOrder(address, {
+          paymentMethod: selectedPayment,
+          specialInstructions,
+          customerName: name,
+          customerPhone: phone,
+        });
+        
+        if (order) {
+          Alert.alert(
+            'Payment Successful! 🎉', 
+            `Your order #${order.id} has been placed successfully.\n\nPayment Method: ${paymentMethods.find(p => p.id === selectedPayment)?.name}\nTotal: ₱${finalTotal.toFixed(2)}`,
+            [{ text: 'View Orders', onPress: () => setScreen('orders') }]
+          );
+        } else {
+          Alert.alert('Error', 'Failed to place order. Please try again.');
+        }
+      } catch (error) {
+        Alert.alert('Payment Failed', 'There was an error processing your payment. Please try again.');
+      } finally {
+        setIsProcessing(false);
       }
-    } catch (error) {
-      Alert.alert('Payment Failed', 'There was an error processing your payment. Please try again.');
-    } finally {
-      setIsProcessing(false);
     }
+    // PayPal payment is handled by the PayPalPayment component
+  };
+
+  const handlePayPalSuccess = (transactionId: string) => {
+    const order = placeOrder(address, {
+      paymentMethod: 'paypal',
+      specialInstructions,
+      customerName: name,
+      customerPhone: phone,
+      transactionId,
+    });
+    
+    if (order) {
+      Alert.alert(
+        'Payment Successful! 🎉', 
+        `Your order #${order.id} has been placed successfully.\n\nPayment Method: PayPal\nTransaction ID: ${transactionId}\nTotal: ₱${finalTotal.toFixed(2)}`,
+        [{ text: 'View Orders', onPress: () => setScreen('orders') }]
+      );
+    } else {
+      Alert.alert('Error', 'Failed to place order. Please try again.');
+    }
+  };
+
+  const handlePayPalError = (error: string) => {
+    Alert.alert('Payment Failed', `PayPal payment failed: ${error}`);
+  };
+
+  const handlePayPalCancel = () => {
+    Alert.alert('Payment Cancelled', 'PayPal payment was cancelled.');
   };
 
   return (
@@ -98,18 +128,14 @@ export default function Checkout() {
       {/* Order Summary */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Order Summary</Text>
-        <FlatList
-          data={cart}
-          keyExtractor={(item) => item.product.id}
-          renderItem={({ item }) => (
-            <View style={styles.orderItem}>
-              <Text style={styles.itemName}>{item.product.name}</Text>
-              <Text style={styles.itemDetails}>
-                ₱{item.product.price} × {item.qty} = ₱{(item.product.price * item.qty).toFixed(2)}
-              </Text>
-            </View>
-          )}
-        />
+        {cart.map((item) => (
+          <View key={item.product.id} style={styles.orderItem}>
+            <Text style={styles.itemName}>{item.product.name}</Text>
+            <Text style={styles.itemDetails}>
+              ₱{item.product.price} × {item.qty} = ₱{(item.product.price * item.qty).toFixed(2)}
+            </Text>
+          </View>
+        ))}
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>Subtotal:</Text>
           <Text style={styles.totalValue}>₱{total.toFixed(2)}</Text>
@@ -198,20 +224,33 @@ export default function Checkout() {
         ))}
       </View>
 
-      {/* Pay Button */}
-      <TouchableOpacity 
-        style={[styles.payBtn, isProcessing && styles.payBtnDisabled]} 
-        onPress={onPay}
-        disabled={isProcessing}
-      >
-        {isProcessing ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.payText}>
-            {selectedPayment === 'cod' ? 'Place Order' : `Pay ₱${finalTotal.toFixed(2)}`}
-          </Text>
-        )}
-      </TouchableOpacity>
+      {/* PayPal Payment Component */}
+      {selectedPayment === 'paypal' && (
+        <PayPalPayment
+          amount={finalTotal}
+          items={cart}
+          onSuccess={handlePayPalSuccess}
+          onError={handlePayPalError}
+          onCancel={handlePayPalCancel}
+        />
+      )}
+
+      {/* Pay Button for other payment methods */}
+      {selectedPayment !== 'paypal' && (
+        <TouchableOpacity 
+          style={[styles.payBtn, isProcessing && styles.payBtnDisabled]} 
+          onPress={onPay}
+          disabled={isProcessing}
+        >
+          {isProcessing ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.payText}>
+              {selectedPayment === 'cod' ? 'Place Order' : `Pay ₱${finalTotal.toFixed(2)}`}
+            </Text>
+          )}
+        </TouchableOpacity>
+      )}
     </ScrollView>
   );
 }

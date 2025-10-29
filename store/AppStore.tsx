@@ -49,7 +49,7 @@ type AppStore = {
   clearCart: () => void;
 
   orders: Order[];
-  placeOrder: (address?: string, orderDetails?: { paymentMethod?: PaymentMethod; specialInstructions?: string; customerName?: string; customerPhone?: string }) => Order | null;
+  placeOrder: (address?: string, orderDetails?: { paymentMethod?: PaymentMethod; specialInstructions?: string; customerName?: string; customerPhone?: string; transactionId?: string }) => Order | null;
   updateOrderStatus: (id: string, status: OrderStatus) => void;
   updatePaymentStatus: (id: string, status: PaymentStatus) => void;
   fetchUsers: () => Promise<void>;
@@ -184,7 +184,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         customerPhone: orderDetails.customerPhone || user?.phone,
         paymentStatus: orderDetails.paymentMethod === 'cod' ? 'Pending' : 'Paid',
         paymentMethod: orderDetails.paymentMethod || 'paypal',
-        transactionId: orderDetails.paymentMethod === 'cod' ? undefined : 'TX-' + Math.random().toString(36).slice(2, 10).toUpperCase(),
+        transactionId: orderDetails.transactionId || (orderDetails.paymentMethod === 'cod' ? undefined : 'TX-' + Math.random().toString(36).slice(2, 10).toUpperCase()),
         specialInstructions: orderDetails.specialInstructions,
         deliveryFee,
       };
